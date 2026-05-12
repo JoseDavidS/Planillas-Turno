@@ -185,11 +185,16 @@ async function enviarASheets(p){
     const json = JSON.stringify(p);
     const encoded = encodeURIComponent(json);
     const url = SHEETS_URL + "?data=" + encoded;
+    console.log("URL largo:", url.length, "chars");
+    console.log("Enviando a:", SHEETS_URL);
     const resp = await fetch(url);
-    const result = await resp.json();
+    console.log("Status:", resp.status);
+    const text = await resp.text();
+    console.log("Respuesta:", text);
+    const result = JSON.parse(text);
     return result.ok === true;
-  }catch(e){
-    Logger && Logger.log && Logger.log(e);
+  }catch(err){
+    console.error("Error enviarASheets:", err.message);
     return false;
   }
 }

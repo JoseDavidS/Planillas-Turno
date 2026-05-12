@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Planillas de Turno</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600;700&display=swap');
+:root{
+  --v:#1a6b2a;--vm:#2d8a3e;--vc:#4caf63;--vb:#e8f5eb;--vl:#f0faf2;
+  --am:#f5c518;--gr:#f4f4f2;--gm:#d8d8d4;--ng:#111;--ro:#c0392b;--az:#2563eb;
+  --rd:10px;--sh:0 4px 24px rgba(0,0,0,.10);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'IBM Plex Sans',sans-serif;background:var(--vl);color:var(--ng);min-height:100vh;padding-bottom:60px}
+header{background:var(--v);color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 12px rgba(0,0,0,.2)}
+.logo{font-family:'IBM Plex Mono',monospace;font-size:1.3rem;font-weight:600;letter-spacing:-1px}
+.sub{font-size:.75rem;opacity:.65;margin-top:2px}
+.prog{background:var(--v);padding:0 24px 12px;display:flex;gap:5px;align-items:center}
+.sdot{width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,.3);color:rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;font-family:'IBM Plex Mono',monospace;transition:all .3s;flex-shrink:0}
+.sdot.active{background:var(--am);border-color:var(--am);color:#111}
+.sdot.done{background:var(--vc);border-color:var(--vc);color:#fff}
+.sline{flex:1;height:2px;background:rgba(255,255,255,.18)}.sline.done{background:var(--vc)}
+.main{max-width:700px;margin:24px auto;padding:0 12px}
+.card{background:#fff;border-radius:var(--rd);box-shadow:var(--sh);padding:26px;animation:fi .28s ease;margin-bottom:12px}
+@keyframes fi{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.ctitle{font-size:1.1rem;font-weight:700;color:var(--v);margin-bottom:4px}
+.csub{font-size:.82rem;color:#666;margin-bottom:18px}
+.opt{border:2px solid var(--gm);border-radius:8px;padding:13px 16px;cursor:pointer;background:#fff;text-align:left;transition:all .2s;display:flex;align-items:flex-start;gap:11px;width:100%;margin-bottom:9px}
+.opt:hover{border-color:var(--vc);background:var(--vl)}.opt.sel{border-color:var(--v);background:var(--vb)}
+.onum{width:28px;height:28px;border-radius:50%;background:var(--gr);display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:.82rem;flex-shrink:0;transition:all .2s}
+.opt.sel .onum{background:var(--v);color:#fff}
+.otxt strong{display:block;font-size:.9rem;margin-bottom:2px}.otxt span{font-size:.76rem;color:#777;font-family:'IBM Plex Mono',monospace}
+.big-input{width:100%;padding:13px 15px;border:2px solid var(--gm);border-radius:8px;font-size:1.2rem;font-family:'IBM Plex Mono',monospace;font-weight:600;text-align:center;transition:border-color .2s;letter-spacing:2px}
+.big-input:focus{outline:none;border-color:var(--v)}
+.fi{width:100%;padding:11px 13px;border:2px solid var(--gm);border-radius:6px;font-size:1rem;font-family:'IBM Plex Mono',monospace;transition:border-color .2s;background:#fff}
+.fi:focus{outline:none;border-color:var(--v)}.fi.txt{font-family:'IBM Plex Sans',sans-serif}
+.prev{font-size:.82rem;color:var(--vm);font-family:'IBM Plex Mono',monospace;margin-top:4px;min-height:18px;font-weight:600}
+.prev.err{color:var(--ro)}
+.flabel{font-size:.75rem;font-weight:700;color:#444;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em}
+.flabel.resta{color:var(--ro)}
+.flabel.varios{color:#7b3fbf}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:9px 0}
+.chip{background:#fff;border:1.5px solid var(--vc);border-radius:6px;padding:4px 8px;font-size:.75rem;font-family:'IBM Plex Mono',monospace;cursor:pointer;transition:all .14s;display:flex;align-items:center;gap:3px}
+.chip:hover{background:var(--vb);border-color:var(--v)}
+.chip.chip-resta{border-color:#e88;}
+.chip.chip-varios{border-color:#b39ddb;}
+.chip .cl{color:#aaa;font-size:.66rem}.chip .cv{color:var(--ng);font-weight:700}.chip .ce{color:#ccc;font-size:.62rem}
+.badge{font-size:.7rem;background:var(--v);color:#fff;padding:2px 8px;border-radius:99px;font-family:'IBM Plex Mono',monospace}
+.op-hd{font-weight:700;color:var(--v);font-size:.9rem;margin-bottom:3px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.gnc-tog{display:flex;gap:7px;margin:9px 0;flex-wrap:wrap}
+.gopt{padding:5px 11px;border:1.5px solid var(--gm);border-radius:6px;cursor:pointer;font-size:.78rem;font-family:'IBM Plex Mono',monospace;transition:all .2s}
+.gopt.sel{border-color:var(--v);background:var(--vb);color:var(--v);font-weight:700}
+/* Tabla */
+.rtab{width:100%;border-collapse:collapse;font-size:.82rem;margin-top:12px;border-radius:8px;overflow:hidden}
+.rtab th{background:var(--v);color:#fff;padding:8px 10px;text-align:center;font-weight:600;font-size:.72rem;text-transform:uppercase;letter-spacing:.04em}
+.rtab td{padding:7px 10px;border-bottom:1px solid var(--gr);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:.8rem}
+.rtab td:first-child{text-align:left;font-family:'IBM Plex Sans',sans-serif;font-weight:600;color:#444;font-size:.8rem}
+.rtab tr.tot td{background:var(--vb);font-weight:700;color:var(--v);border-top:2px solid var(--vc)}
+.rtab tr.res td{background:var(--v);color:#fff;font-weight:700}
+.rtab tr.sep td{background:#f8f8f6;font-style:italic;color:#999;font-size:.73rem;text-align:left;padding:4px 10px}
+.rtab tr.resta-row td{color:var(--ro)}
+.rtab tr.varios-row td{color:#7b3fbf}
+.rtab tr:not(.tot):not(.res):not(.sep):hover td{background:var(--vl)}
+.op-sub{font-size:.68rem;color:rgba(255,255,255,.6);font-weight:300;display:block}
+/* Botones */
+.brow{display:flex;gap:9px;margin-top:18px;flex-wrap:wrap}
+.btn{padding:10px 18px;border-radius:6px;border:none;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:.85rem;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
+.bp{background:var(--v);color:#fff}.bp:hover{background:var(--vm)}.bp:disabled{background:var(--gm);cursor:not-allowed;color:#999}
+.bs{background:var(--gr);color:var(--ng);border:1.5px solid var(--gm)}.bs:hover{background:var(--gm)}
+.bx{background:#217346;color:#fff}.bx:hover{background:#185a36}
+.bd{background:#fff;color:var(--ro);border:1.5px solid var(--ro)}.bd:hover{background:#fdf0ef}
+.bh{background:#fff;color:var(--az);border:1.5px solid var(--az)}.bh:hover{background:#eff6ff}
+.bam{background:var(--am);color:#111;border:none}.bam:hover{background:#e6b800}
+.hint{font-size:.72rem;color:#aaa;margin-top:6px;line-height:1.5}
+.div{height:1px;background:var(--gr);margin:13px 0}
+/* Historial */
+.hitem{border:1.5px solid var(--gm);border-radius:8px;padding:11px 15px;margin-bottom:9px;display:flex;align-items:center;justify-content:space-between;gap:9px;flex-wrap:wrap}
+.hnro{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:.95rem;color:var(--v)}
+.hmeta{font-size:.73rem;color:#888;margin-top:1px}.hops{font-size:.75rem;color:#555;margin-top:2px}
+/* Toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--v);color:#fff;padding:10px 22px;border-radius:8px;font-size:.85rem;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,.2);z-index:300;animation:toastIn .3s ease;white-space:nowrap}
+@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+/* Overlay */
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:200;animation:fi .2s}
+.ebox{background:#fff;border-radius:var(--rd);padding:24px;width:360px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.2)}
+.ebox h3{margin-bottom:10px;color:var(--v);font-size:.95rem}
+/* Config diferencial */
+.op-config{border:1.5px solid var(--gm);border-radius:8px;padding:14px;margin-bottom:10px;background:var(--gr)}
+.op-config-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.op-config-num{font-weight:700;color:var(--v);font-size:.88rem}
+.row2{display:flex;gap:10px}.row2>*{flex:1}
+.hcount{background:var(--am);color:#111;border-radius:99px;font-size:.7rem;font-weight:700;padding:1px 6px;font-family:'IBM Plex Mono',monospace}
+/* Cajas totales */
+.total-box{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}
+.tbox{flex:1;min-width:130px;border-radius:8px;padding:11px 14px;text-align:center}
+.tbox .tlabel{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;opacity:.8;margin-bottom:4px}
+.tbox .tval{font-family:'IBM Plex Mono',monospace;font-size:1.05rem;font-weight:700}
+.tbox.rendido{background:var(--vb);color:var(--v)}
+.tbox.rendir{background:#e8f0fe;color:#1a3eb5}
+.tbox.resultado{color:#fff}
+/* Ayuda campo */
+.campo-ayuda{font-size:.75rem;padding:7px 10px;border-radius:6px;margin-top:7px;line-height:1.5}
+.campo-ayuda.azul{background:#e8f0fe;color:#1a3eb5}
+.campo-ayuda.rojo{background:#fdf0ef;color:var(--ro)}
+.campo-ayuda.violeta{background:#f3e8ff;color:#7b3fbf}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="logo">⛽ Planillas de Turno</div>
+    <div class="sub">Carga guiada · Guardado automático</div>
+  </div>
+  <div id="hbadge"></div>
+</header>
+<div class="prog" id="prog"></div>
+<div class="main" id="app"></div>
+
+<div class="ov" id="ov" style="display:none">
+  <div class="ebox">
+    <h3 id="ovT">Editar campo</h3>
+    <div class="flabel" id="ovL" style="margin-bottom:5px"></div>
+    <input class="fi" id="ovI" placeholder="Ej: 1000+500+250">
+    <div class="prev" id="ovP"></div>
+    <div class="brow" style="margin-top:12px">
+      <button class="btn bp" onclick="confirmEdit()">Guardar</button>
+      <button class="btn bs" onclick="closeEdit()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════
+// CAMPOS
+// B, T, YER, CTA CTE, MP, APP  → suman al Total Rendido
+// VARIOS                        → suma al Total Rendido (agua/productos)
+// PRECIO_DIF                    → RESTA del Total Rendido (descuento)
+// total_por_rendir              → lo carga el usuario (surtidores)
+// total_rendido                 → calculado automáticamente
+// ══════════════════════════════════════════════════
+const CNUM_BASE  = ["B","T","YER","CTA CTE","MP","APP"];
+const CNUM_SUMA  = [...CNUM_BASE, "varios"];          // suman
+const CNUM_RESTA = ["precio_dif"];                    // restan
+const CALL = ["nombre",...CNUM_BASE,"varios","precio_dif","total_por_rendir","total_rendido"];
+
+const LBL = {
+  nombre:         "Nombre del operario",
+  B:"B", T:"T", YER:"YER", "CTA CTE":"CTA CTE", MP:"MP", APP:"APP",
+  varios:         "Varios (agua y otros productos)",
+  precio_dif:     "Precio diferenciado (descuento)",
+  total_por_rendir:"Total por Rendir (surtidores)",
+  total_rendido:  "Total Rendido",
+};
+
+// Calcula total rendido: suma(CNUM_SUMA) - suma(CNUM_RESTA)
+function calcRendido(campos){
+  const s = CNUM_SUMA.reduce((a,c)=>a+num(campos[c]),0);
+  const r = CNUM_RESTA.reduce((a,c)=>a+num(campos[c]),0);
+  return s - r;
+}
+
+// ══════════════════════════════════════════════════
+const TIPOS_FIJOS = [
+  {id:1,titulo:"Turno estándar",    desc:"Surtidor 1,5 y 6  /  2,3 y 4",
+   ops:[{surt:"1, 5 y 6"},{surt:"2, 3 y 4"}]},
+  {id:2,titulo:"Turno dividido",    desc:"1 y 2  /  3 y 4  /  5 y 6",
+   ops:[{surt:"1 y 2"},{surt:"3 y 4"},{surt:"5 y 6"}]},
+  {id:3,titulo:"Total combustibles",desc:"Un operario, todos los surtidores",
+   ops:[{surt:"Todos los surtidores"}]},
+  {id:4,titulo:"GNC + Combustible", desc:"Operario GNC  +  Operario Total combustibles",
+   ops:[{surt:"GNC",esGNC:true},{surt:"Total combustibles"}]},
+  {id:5,titulo:"Diferencial",       desc:"Definís vos cuántos operarios y sus surtidores",
+   ops:null},
+];
+
+// ══════════════════════════════════════════════════
+// GOOGLE SHEETS
+// ══════════════════════════════════════════════════
+const SHEETS_URL="https://script.google.com/macros/s/AKfycbx3KGtKSfWZyO1fbuhZO_oAPqE4svyae1MqWMPs_GyFSFtfWpXvbb30dLlW8byo52lF/exec";
+
+async function enviarASheets(p){
+  try{
+    await fetch(SHEETS_URL,{
+      method:"POST",
+      mode:"no-cors",
+      headers:{"Content-Type":"text/plain"},
+      body:JSON.stringify(p),
+    });
+    return true;
+  }catch(e){ return false; }
+}
+
+// ══════════════════════════════════════════════════
+// PERSISTENCIA
+// ══════════════════════════════════════════════════
+const KEY="planillas_v4";
+function cargarHist(){ try{ return JSON.parse(localStorage.getItem(KEY)||"[]"); }catch(e){ return []; } }
+function guardarHist(h){ try{ localStorage.setItem(KEY,JSON.stringify(h)); }catch(e){ toast("⚠️ Error al guardar"); } }
+let historial=cargarHist();
+
+// ══════════════════════════════════════════════════
+// ESTADO
+// ══════════════════════════════════════════════════
+let S={pan:"inicio",nro:"",tipo:null,ops:[],oi:0,ci:0,difConfig:[]};
+
+// ══════════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════════
+function render(){
+  renderProg(); renderBadge();
+  const map={inicio:rInicio,tipo:rTipo,difConfig:rDifConfig,datos:rDatos,resumen:rResumen,historial:rHistorial};
+  document.getElementById("app").innerHTML=(map[S.pan]||rInicio)();
+  setTimeout(()=>{ const i=document.getElementById("ci")||document.getElementById("ni"); if(i)i.focus(); },60);
+}
+
+function renderBadge(){
+  const cnt=historial.length;
+  document.getElementById("hbadge").innerHTML=S.nro
+    ?`<div style="background:rgba(255,255,255,.15);border-radius:6px;padding:4px 12px;font-family:'IBM Plex Mono',monospace;font-size:.82rem;font-weight:600">N° ${S.nro}</div>`
+    :`<button class="btn bh" style="font-size:.75rem;padding:6px 12px" onclick="S.pan='historial';render()">📋 Historial${cnt?` <span class="hcount">${cnt}</span>`:""}
+      </button>`;
+}
+
+function renderProg(){
+  const steps=["N° Planilla","Tipo","Carga","Confirmación"];
+  const idx={inicio:0,tipo:1,difConfig:1,datos:2,resumen:3,historial:0}[S.pan]??0;
+  document.getElementById("prog").innerHTML=steps.map((s,i)=>{
+    const c=i<idx?"done":i===idx?"active":"";
+    return `<div class="sdot ${c}">${i<idx?"✓":i+1}</div>${i<steps.length-1?`<div class="sline ${i<idx?"done":""}"></div>`:""}`;
+  }).join("");
+}
+
+// ══ N° Planilla ═══════════════════════════════════
+function rInicio(){
+  return `<div class="card">
+    <div class="ctitle">Número de planilla</div>
+    <div class="csub">Ingresá el número antes de comenzar la carga.</div>
+    <input id="ni" class="big-input" type="text" placeholder="Ej: 0042"
+      value="${S.nro}" onkeydown="if(event.key==='Enter')irTipo()">
+    <div class="hint">Presioná Enter o hacé clic en Continuar</div>
+    <div class="brow">
+      <button class="btn bp" onclick="irTipo()">Continuar →</button>
+      <button class="btn bh" onclick="S.pan='historial';render()">📋 Historial${historial.length?` <span class="hcount">${historial.length}</span>`:""}</button>
+    </div>
+  </div>`;
+}
+function irTipo(){
+  const v=(document.getElementById("ni")?.value||"").trim();
+  if(!v){alert("Ingresá el número de planilla.");return;}
+  S.nro=v; S.pan="tipo"; render();
+}
+
+// ══ Tipo ══════════════════════════════════════════
+function rTipo(){
+  return `<div class="card">
+    <div class="ctitle">Tipo de planilla</div>
+    <div class="csub">Planilla N° <strong>${S.nro}</strong> — Seleccioná la distribución de surtidores.</div>
+    ${TIPOS_FIJOS.map(t=>`
+      <button class="opt ${S.tipo?.id===t.id?'sel':''}" onclick="selTipo(${t.id})">
+        <div class="onum">${t.id}</div>
+        <div class="otxt"><strong>${t.titulo}${t.id===5?' ✏️':''}</strong><span>${t.desc}</span></div>
+      </button>`).join("")}
+    <div class="brow">
+      <button class="btn bp" onclick="irSiguienteTipo()" ${!S.tipo?'disabled':''}>Continuar →</button>
+      <button class="btn bs" onclick="S.pan='inicio';render()">← Volver</button>
+    </div>
+  </div>`;
+}
+function selTipo(id){ S.tipo=TIPOS_FIJOS.find(t=>t.id===id); render(); }
+function irSiguienteTipo(){
+  if(!S.tipo) return;
+  if(S.tipo.id===5){ if(!S.difConfig.length) S.difConfig=[{surt:"",nombre:""}]; S.pan="difConfig"; render(); }
+  else iniciarOps(S.tipo.ops);
+}
+function iniciarOps(opsDef){
+  S.ops=opsDef.map(o=>({
+    nombre:o.nombrePre||"",surtidores:o.surt,esGNC:o.esGNC||false,gncSolo:true,
+    campos:{B:"",T:"",YER:"","CTA CTE":"",MP:"",APP:"",varios:"",precio_dif:"",total_por_rendir:"",total_rendido:""},
+    raw:  {B:"",T:"",YER:"","CTA CTE":"",MP:"",APP:"",varios:"",precio_dif:"",total_por_rendir:"",total_rendido:""},
+  }));
+  S.oi=0; S.ci=0; S.pan="datos"; render();
+}
+
+// ══ Diferencial config ════════════════════════════
+function rDifConfig(){
+  const items=S.difConfig.map((op,i)=>`
+    <div class="op-config">
+      <div class="op-config-hd">
+        <span class="op-config-num">Operario ${i+1}</span>
+        ${S.difConfig.length>1?`<button class="btn bd" style="padding:4px 10px;font-size:.75rem" onclick="quitarOp(${i})">✕ Quitar</button>`:""}
+      </div>
+      <div class="row2">
+        <div>
+          <div class="flabel">Nombre (opcional)</div>
+          <input class="fi txt" type="text" placeholder="Ej: García"
+            value="${op.nombre||''}" oninput="S.difConfig[${i}].nombre=this.value">
+        </div>
+        <div>
+          <div class="flabel">Surtidores asignados</div>
+          <input class="fi txt" type="text" placeholder="Ej: 1, 2 y 3"
+            value="${op.surt}" oninput="S.difConfig[${i}].surt=this.value">
+        </div>
+      </div>
+    </div>`).join("");
+  return `<div class="card">
+    <div class="ctitle">Planilla Diferencial — Configurar operarios</div>
+    <div class="csub">Planilla N° <strong>${S.nro}</strong> — Definí cuántos operarios y sus surtidores.</div>
+    ${items}
+    <button class="btn bam" onclick="agregarOp()" style="margin-bottom:6px">+ Agregar operario</button>
+    <div class="brow">
+      <button class="btn bp" onclick="confirmarDif()">Continuar →</button>
+      <button class="btn bs" onclick="S.pan='tipo';render()">← Volver</button>
+    </div>
+  </div>`;
+}
+function agregarOp(){ S.difConfig.push({surt:"",nombre:""}); render(); }
+function quitarOp(i){ S.difConfig.splice(i,1); render(); }
+function confirmarDif(){
+  if(S.difConfig.some(o=>!o.surt.trim())){alert("Completá los surtidores de todos los operarios.");return;}
+  iniciarOps(S.difConfig.map(o=>({surt:o.surt.trim(),nombrePre:o.nombre||""})));
+}
+
+// ══ Carga campo a campo ═══════════════════════════
+function rDatos(){
+  const op=S.ops[S.oi], campo=CALL[S.ci];
+  const esUltOp=S.oi===S.ops.length-1, esUltCam=S.ci===CALL.length-1;
+
+  let previos="";
+  for(let i=0;i<S.oi;i++) previos+=rOpComp(i);
+
+  // Chips de campos ya cargados en este operario
+  const chips=CALL.slice(0,S.ci).map((c,i)=>{
+    const val=c==="nombre"?op.nombre:fmt(op.campos[c]);
+    const raw=c==="nombre"?"":op.raw[c]||"";
+    const esResta=c==="precio_dif", esVarios=c==="varios";
+    return `<div class="chip ${esResta?'chip-resta':esVarios?'chip-varios':''}" onclick="editCampo(${S.oi},${i})">
+      <span class="cl">${LBL[c]}</span>
+      <span class="cv">${esResta?"−":""} ${val}</span>
+      ${raw&&/[+\-*/]/.test(raw)?`<span class="ce">(${raw})</span>`:""}✏️</div>`;
+  }).join("");
+
+  // Input
+  let inp="";
+  if(campo==="nombre"){
+    inp=`<input id="ci" class="fi txt" type="text"
+      placeholder="Nombre del operario" value="${op.nombre}"
+      onkeydown="teclaEnter(event)">`;
+  } else {
+    const rv=op.raw[campo]||"";
+    inp=`<input id="ci" class="fi" type="text"
+      placeholder="Ej: 1000+500+250" value="${rv}"
+      oninput="upPrev(this.value,'cp')" onkeydown="teclaEnter(event)">
+    <div class="prev" id="cp">${rv?prevStr(rv):""}</div>`;
+  }
+
+  // Ayudas contextuales
+  let ayuda="";
+  const rendidoActual=calcRendido(op.campos);
+  if(campo==="varios")
+    ayuda=`<div class="campo-ayuda violeta">🛒 Agua, golosinas y otros productos. <strong>Suma</strong> al Total Rendido.</div>`;
+  if(campo==="precio_dif")
+    ayuda=`<div class="campo-ayuda rojo">🏷️ Descuento por precio diferenciado. <strong>Resta</strong> del Total Rendido. Total Rendido parcial hasta acá: <strong>${fmt(rendidoActual)}</strong></div>`;
+  if(campo==="total_por_rendir")
+    ayuda=`<div class="campo-ayuda azul">📊 Lo que marcaron los surtidores (lo ingresás vos).</div>`;
+  if(campo==="total_rendido")
+    ayuda=`<div class="campo-ayuda azul">✅ Total Rendido calculado = B+T+YER+CTACTE+MP+APP+Varios−P.Dif = <strong>${fmt(rendidoActual)}</strong><br>Dejalo vacío para usar ese valor automáticamente, o ingresá uno diferente.</div>`;
+
+  // GNC toggle
+  let gnc="";
+  if(op.esGNC&&campo==="nombre") gnc=`
+    <div style="margin-top:11px">
+      <div class="flabel">Surtidores GNC:</div>
+      <div class="gnc-tog">
+        <div class="gopt ${op.gncSolo?'sel':''}" onclick="setGNC(true)">Solo GNC</div>
+        <div class="gopt ${!op.gncSolo?'sel':''}" onclick="setGNC(false)">GNC + 3 y 4</div>
+      </div></div>`;
+
+  // Label con color según tipo de campo
+  const lblClass=campo==="precio_dif"?"resta":campo==="varios"?"varios":"";
+  const prefijo=campo==="precio_dif"?"➖ ":campo==="varios"?"🛒 ":"";
+
+  return `<div>
+    ${previos}
+    <div class="card">
+      <div class="op-hd">Operario ${S.oi+1} / ${S.ops.length}<span class="badge">${op.surtidores}</span></div>
+      <div class="csub" style="margin-bottom:0">Planilla N° <strong>${S.nro}</strong> — ${S.tipo.titulo}</div>
+      ${chips?`<div class="chips">${chips}</div><div class="div"></div>`:""}
+      <div style="margin-top:11px">
+        <div class="flabel ${lblClass}">${prefijo}${LBL[campo]}</div>
+        ${inp}${ayuda}${gnc}
+        <div class="hint">${campo!=="nombre"?"Podés escribir sumas: <strong>1000+500+250</strong><br>":""}Presioná <strong>Enter</strong> para avanzar</div>
+      </div>
+      <div class="brow">
+        <button class="btn bp" onclick="avanzar()">${esUltCam&&esUltOp?"Ver resumen →":"Siguiente →"}</button>
+        ${S.ci>0||S.oi>0?`<button class="btn bs" onclick="retroceder()">← Atrás</button>`:""}
+      </div>
+    </div>
+  </div>`;
+}
+
+function rOpComp(idx){
+  const op=S.ops[idx];
+  const chips=CALL.map((c,i)=>{
+    const val=c==="nombre"?op.nombre:fmt(op.campos[c]);
+    const raw=c==="nombre"?"":op.raw[c]||"";
+    const esResta=c==="precio_dif", esVarios=c==="varios";
+    return `<div class="chip ${esResta?'chip-resta':esVarios?'chip-varios':''}" onclick="editCampo(${idx},${i})">
+      <span class="cl">${LBL[c]}</span>
+      <span class="cv">${esResta?"−":""} ${val}</span>
+      ${raw&&/[+\-*/]/.test(raw)?`<span class="ce">(${raw})</span>`:""}✏️</div>`;
+  }).join("");
+  return `<div class="card" style="border-left:4px solid var(--vc)">
+    <div class="op-hd" style="margin-bottom:7px">✅ ${op.nombre||"Operario "+(idx+1)}<span class="badge">${op.surtidores}</span></div>
+    <div class="chips">${chips}</div>
+  </div>`;
+}
+
+// ══ Resumen ════════════════════════════════════════
+function rResumen(){
+  const thOps=S.ops.map(o=>`<th>${o.nombre||"—"}<span class="op-sub">${o.surtidores}</span></th>`).join("");
+
+  // Totales globales
+  const totRendido   = S.ops.reduce((a,o)=>a+num(o.campos.total_rendido),0);
+  const totPorRendir = S.ops.reduce((a,o)=>a+num(o.campos.total_por_rendir),0);
+  const resultado    = totRendido - totPorRendir;
+
+  // Filas campos base
+  const rBase=CNUM_BASE.map(c=>{
+    const tds=S.ops.map(o=>{
+      const raw=o.raw[c]||"";
+      return `<td${raw&&/[+\-*/]/.test(raw)?` title="${raw}"`:""}>${fmt(o.campos[c])}</td>`;
+    }).join("");
+    return `<tr><td>${c}</td>${tds}</tr>`;
+  }).join("");
+
+  // Fila varios
+  const rVarios=S.ops.map(o=>`<td>${fmt(o.campos.varios)}</td>`).join("");
+  // Fila precio dif
+  const rPDif=S.ops.map(o=>`<td>− ${fmt(o.campos.precio_dif)}</td>`).join("");
+  // Total rendido por operario
+  const rTotRend=S.ops.map(o=>`<td>${fmt(o.campos.total_rendido)}</td>`).join("");
+  // Total por rendir
+  const rPorRend=S.ops.map(o=>`<td>${fmt(o.campos.total_por_rendir)}</td>`).join("");
+  // Resultado por operario
+  const rRes=S.ops.map(o=>{
+    const r=num(o.campos.total_rendido)-num(o.campos.total_por_rendir);
+    return `<td style="color:${r<0?"#ff6b6b":r>0?"#4cff8a":"inherit"}">${fmt(r)}</td>`;
+  }).join("");
+
+  // Chips editables
+  const chipsSec=S.ops.map((op,idx)=>{
+    const chips=CALL.map((c,i)=>{
+      const val=c==="nombre"?op.nombre:fmt(op.campos[c]);
+      const raw=c==="nombre"?"":op.raw[c]||"";
+      const esResta=c==="precio_dif",esVarios=c==="varios";
+      return `<div class="chip ${esResta?'chip-resta':esVarios?'chip-varios':''}" onclick="editCampo(${idx},${i})">
+        <span class="cl">${LBL[c]}</span>
+        <span class="cv">${esResta?"−":""} ${val}</span>
+        ${raw&&/[+\-*/]/.test(raw)?`<span class="ce">(${raw})</span>`:""}✏️</div>`;
+    }).join("");
+    return `<div style="margin-bottom:10px">
+      <div style="font-size:.75rem;font-weight:700;color:var(--v);margin-bottom:4px">
+        ${op.nombre||"Operario "+(idx+1)} — <span style="font-weight:400;color:#666">${op.surtidores}</span>
+      </div>
+      <div class="chips">${chips}</div>
+    </div>`;
+  }).join("");
+
+  const resBg=resultado<0?"#8b1a1a":resultado>0?"#1a6b2a":"#444";
+
+  return `<div class="card">
+    <div class="ctitle">Planilla N° ${S.nro} — Revisión final</div>
+    <div class="csub">${S.tipo.titulo} · Hacé clic en ✏️ para editar cualquier valor.</div>
+
+    <div class="total-box">
+      <div class="tbox rendido">
+        <div class="tlabel">Total Rendido</div>
+        <div class="tval">${fmt(totRendido)}</div>
+      </div>
+      <div class="tbox rendir">
+        <div class="tlabel">Total por Rendir</div>
+        <div class="tval">${fmt(totPorRendir)}</div>
+      </div>
+      <div class="tbox resultado" style="background:${resBg}">
+        <div class="tlabel">Resultado</div>
+        <div class="tval">${fmt(resultado)}</div>
+      </div>
+    </div>
+
+    <div style="overflow-x:auto">
+      <table class="rtab">
+        <thead><tr><th>Campo</th>${thOps}</tr></thead>
+        <tbody>
+          <tr class="sep"><td colspan="${S.ops.length+1}">— Formas de pago (suman) —</td></tr>
+          ${rBase}
+          <tr class="varios-row"><td>🛒 Varios</td>${rVarios}</tr>
+          <tr class="sep"><td colspan="${S.ops.length+1}">— Descuentos (restan) —</td></tr>
+          <tr class="resta-row"><td>🏷️ Precio diferenciado</td>${rPDif}</tr>
+          <tr class="tot"><td>TOTAL RENDIDO</td>${rTotRend}</tr>
+          <tr class="sep"><td colspan="${S.ops.length+1}">— Surtidores —</td></tr>
+          <tr><td>Total por Rendir</td>${rPorRend}</tr>
+          <tr class="res"><td>RESULTADO</td>${rRes}</tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="div"></div>
+    ${chipsSec}
+
+    <div class="brow">
+      <button class="btn bp" onclick="guardar()">💾 Guardar planilla</button>
+      <button class="btn bs" onclick="volverDatos()">✏️ Modificar</button>
+      <button class="btn bd" onclick="reiniciar()">🔄 Nueva sin guardar</button>
+    </div>
+  </div>`;
+}
+
+// ══ Historial ══════════════════════════════════════
+function rHistorial(){
+  if(!historial.length) return `<div class="card">
+    <div class="ctitle">Historial de planillas</div>
+    <div class="csub">Todavía no hay planillas guardadas en este navegador.</div>
+    <div class="brow"><button class="btn bp" onclick="S.pan='inicio';render()">← Volver</button></div>
+  </div>`;
+
+  const items=[...historial].reverse().map((p,ri)=>{
+    const idx=historial.length-1-ri;
+    const tR=p.ops.reduce((a,o)=>a+num(o.campos.total_rendido),0);
+    const tP=p.ops.reduce((a,o)=>a+num(o.campos.total_por_rendir),0);
+    return `<div class="hitem">
+      <div>
+        <div class="hnro">Planilla N° ${p.nro}</div>
+        <div class="hmeta">${p.fecha} · ${p.tipo}</div>
+        <div class="hops">${p.ops.map(o=>o.nombre||"(sin nombre)").join(" · ")}</div>
+        <div style="font-size:.72rem;color:var(--vm);margin-top:3px;font-family:'IBM Plex Mono',monospace">
+          Rendido: ${fmt(tR)} · Por rendir: ${fmt(tP)} · Dif: ${fmt(tR-tP)}
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn bx" style="font-size:.72rem;padding:6px 10px" onclick="exportarUna(${idx})">📥 Excel</button>
+        <button class="btn bp" style="font-size:.72rem;padding:6px 10px;background:#0f9d58" onclick="reenviarSheets(${idx})">📤 Sheets</button>
+        <button class="btn bd" style="font-size:.72rem;padding:6px 10px" onclick="eliminar(${idx})">🗑</button>
+      </div>
+    </div>`;
+  }).join("");
+
+  return `<div class="card">
+    <div class="ctitle">📋 Historial — ${historial.length} planilla(s) guardada(s)</div>
+    <div class="csub">Guardadas en este navegador. Exportá una o todas en un solo Excel con hojas separadas.</div>
+    ${items}
+    <div class="brow">
+      <button class="btn bx" onclick="exportarTodas()">📥 Exportar todas en un Excel</button>
+      <button class="btn bp" style="background:#0f9d58" onclick="reenviarTodas()">📤 Enviar todas a Sheets</button>
+      <button class="btn bp" onclick="S.pan='inicio';render()">+ Nueva planilla</button>
+      <button class="btn bd" onclick="borrarTodo()">🗑 Borrar todo el historial</button>
+    </div>
+  </div>`;
+}
+
+// ══════════════════════════════════════════════════
+// LÓGICA CAMPOS
+// ══════════════════════════════════════════════════
+function evalExpr(s){
+  const c=s.replace(/,/g,'.').replace(/[^0-9+\-*/.()\s]/g,'');
+  try{ const r=Function('"use strict";return('+c+')')(); return isFinite(r)?Math.round(r*100)/100:null; }catch(e){ return null; }
+}
+function prevStr(s){
+  if(!s||!/[+\-*/]/.test(s)) return "";
+  const r=evalExpr(s);
+  return r===null?`<span class="err">Expresión inválida</span>`:`= <strong>${fmt(r)}</strong>`;
+}
+function upPrev(s,id){ const el=document.getElementById(id); if(el) el.innerHTML=prevStr(s); }
+
+function avanzar(){
+  const op=S.ops[S.oi], campo=CALL[S.ci];
+  const val=(document.getElementById("ci")?.value||"").trim();
+  if(campo==="nombre"){
+    op.nombre=val;
+  } else if(campo==="total_rendido"){
+    // Auto-calcular si vacío
+    const auto=calcRendido(op.campos);
+    if(val===""){ op.campos.total_rendido=auto; op.raw.total_rendido=""; }
+    else{ op.raw[campo]=val; op.campos[campo]=evalExpr(val)??num(val); }
+  } else {
+    op.raw[campo]=val; op.campos[campo]=val?(evalExpr(val)??0):0;
+  }
+  if(S.ci===CALL.length-1){ if(S.oi===S.ops.length-1) S.pan="resumen"; else{S.oi++;S.ci=0;} }
+  else S.ci++;
+  render();
+}
+
+function retroceder(){
+  if(S.ci>0) S.ci--;
+  else if(S.oi>0){S.oi--;S.ci=CALL.length-1;}
+  else S.pan="tipo";
+  render();
+}
+function volverDatos(){ S.pan="datos";S.oi=S.ops.length-1;S.ci=CALL.length-1;render(); }
+function teclaEnter(e){ if(e.key==="Enter") avanzar(); }
+function setGNC(solo){ S.ops[S.oi].gncSolo=solo;S.ops[S.oi].surtidores=solo?"GNC":"GNC + 3 y 4";render(); }
+
+// ══════════════════════════════════════════════════
+// GUARDAR
+// ══════════════════════════════════════════════════
+async function guardar(){
+  const p={
+    nro:S.nro, fecha:new Date().toLocaleString("es-AR"), tipo:S.tipo.titulo,
+    ops:S.ops.map(o=>({nombre:o.nombre,surtidores:o.surtidores,campos:{...o.campos},raw:{...o.raw}})),
+  };
+  historial.push(p); guardarHist(historial);
+  toast(`💾 Guardando planilla N° ${S.nro}...`);
+
+  // Enviar a Google Sheets en paralelo
+  enviarASheets(p).then(ok=>{
+    if(ok) toast(`✅ Planilla N° ${p.nro} guardada y enviada a Google Sheets`);
+    else    toast(`⚠️ Guardada localmente. No se pudo enviar a Google Sheets`);
+  });
+
+  setTimeout(reiniciar,1400);
+}
+
+// ══════════════════════════════════════════════════
+// EDICIÓN OVERLAY
+// ══════════════════════════════════════════════════
+let ES={oi:null,ci:null};
+function editCampo(oi,ci){
+  ES={oi,ci};
+  const campo=CALL[ci],op=S.ops[oi];
+  document.getElementById("ovT").textContent=`Editar: ${LBL[campo]}`;
+  document.getElementById("ovL").textContent=op.nombre||"Operario "+(oi+1);
+  const inp=document.getElementById("ovI");
+  inp.value=campo==="nombre"?op.nombre:(op.raw[campo]||op.campos[campo]||"");
+  document.getElementById("ovP").innerHTML=campo!=="nombre"?prevStr(inp.value):"";
+  document.getElementById("ov").style.display="flex";
+  setTimeout(()=>inp.focus(),50);
+}
+function confirmEdit(){
+  const campo=CALL[ES.ci],val=document.getElementById("ovI").value.trim(),op=S.ops[ES.oi];
+  if(campo==="nombre"){ op.nombre=val; }
+  else{ op.raw[campo]=val; op.campos[campo]=val?(evalExpr(val)??0):0; }
+  // Recalcular total_rendido si cambió algo que lo afecta
+  if([...CNUM_SUMA,...CNUM_RESTA].includes(campo)){
+    op.campos.total_rendido=calcRendido(op.campos);
+    op.raw.total_rendido="";
+  }
+  closeEdit(); render();
+}
+function closeEdit(){ document.getElementById("ov").style.display="none"; }
+document.getElementById("ovI").addEventListener("input",e=>{
+  if(ES.ci!==null&&CALL[ES.ci]!=="nombre") document.getElementById("ovP").innerHTML=prevStr(e.target.value);
+});
+document.getElementById("ovI").addEventListener("keydown",e=>{
+  if(e.key==="Enter") confirmEdit(); if(e.key==="Escape") closeEdit();
+});
+
+// ══════════════════════════════════════════════════
+// EXCEL
+// ══════════════════════════════════════════════════
+function buildRows(p){
+  const tR=p.ops.reduce((a,o)=>a+num(o.campos.total_rendido),0);
+  const tP=p.ops.reduce((a,o)=>a+num(o.campos.total_por_rendir),0);
+  return [
+    [`PLANILLA N° ${p.nro}  ·  ${p.tipo}  ·  ${p.fecha}`],[],
+    ["Surtidores",...p.ops.map(o=>o.surtidores)],
+    ["Operario",  ...p.ops.map(o=>o.nombre||"—")],[],
+    ["— Formas de pago (suman) —"],
+    ...CNUM_BASE.map(c=>[c,...p.ops.map(o=>num(o.campos[c]))]),
+    ["Varios (agua y otros)",...p.ops.map(o=>num(o.campos.varios))],[],
+    ["— Descuentos (restan) —"],
+    ["Precio diferenciado",...p.ops.map(o=>-num(o.campos.precio_dif))],[],
+    ["TOTAL RENDIDO",...p.ops.map(o=>num(o.campos.total_rendido))],[],
+    ["— Surtidores —"],
+    ["Total por Rendir",...p.ops.map(o=>num(o.campos.total_por_rendir))],
+    ["RESULTADO",...p.ops.map(o=>num(o.campos.total_rendido)-num(o.campos.total_por_rendir))],[],
+    ["TOTALES GLOBALES",""],
+    ["Total Rendido global",tR],["Total por Rendir global",tP],["Resultado global",tR-tP],[],
+    ["Expresiones ingresadas"],
+    ...[...CNUM_BASE,"varios","precio_dif","total_por_rendir"].map(c=>[LBL[c]||c,...p.ops.map(o=>o.raw?.[c]||"")]),
+  ];
+}
+
+function exportarUna(idx){
+  const p=historial[idx],wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet(buildRows(p));
+  ws["!cols"]=[{wch:26},...p.ops.map(()=>({wch:18}))];
+  XLSX.utils.book_append_sheet(wb,ws,`Planilla ${String(p.nro).slice(0,25)}`);
+  XLSX.writeFile(wb,`Planilla_${p.nro}.xlsx`);
+}
+
+function exportarTodas(){
+  if(!historial.length){alert("No hay planillas guardadas.");return;}
+  const wb=XLSX.utils.book_new();
+  historial.forEach(p=>{
+    const ws=XLSX.utils.aoa_to_sheet(buildRows(p));
+    ws["!cols"]=[{wch:26},...p.ops.map(()=>({wch:18}))];
+    XLSX.utils.book_append_sheet(wb,ws,`P${String(p.nro).slice(0,29)}`);
+  });
+  // Hoja resumen
+  const wsR=XLSX.utils.aoa_to_sheet([
+    ["N° Planilla","Fecha","Tipo","Operarios","Total Rendido","Total por Rendir","Resultado"],
+    ...historial.map(p=>{
+      const tR=p.ops.reduce((a,o)=>a+num(o.campos.total_rendido),0);
+      const tP=p.ops.reduce((a,o)=>a+num(o.campos.total_por_rendir),0);
+      return [p.nro,p.fecha,p.tipo,p.ops.map(o=>o.nombre).join(" / "),tR,tP,tR-tP];
+    })
+  ]);
+  wsR["!cols"]=[{wch:12},{wch:22},{wch:20},{wch:35},{wch:16},{wch:18},{wch:14}];
+  XLSX.utils.book_append_sheet(wb,wsR,"Resumen");
+  XLSX.writeFile(wb,`Planillas_${new Date().toLocaleDateString("es-AR").replace(/\//g,"-")}.xlsx`);
+  toast(`📥 ${historial.length} planillas exportadas`);
+}
+
+async function reenviarSheets(idx){
+  const p=historial[idx];
+  toast(`📤 Enviando planilla N° ${p.nro} a Sheets...`);
+  const ok=await enviarASheets(p);
+  toast(ok?`✅ Planilla N° ${p.nro} enviada a Google Sheets`:`⚠️ No se pudo enviar. Verificá tu conexión.`);
+}
+
+async function reenviarTodas(){
+  if(!historial.length){alert("No hay planillas guardadas.");return;}
+  toast(`📤 Enviando ${historial.length} planillas a Sheets...`);
+  let ok=0, err=0;
+  for(const p of historial){
+    const res=await enviarASheets(p);
+    res?ok++:err++;
+  }
+  toast(`✅ ${ok} enviadas${err?` · ⚠️ ${err} con error`:""}`);
+}
+
+function eliminar(idx){
+  if(!confirm(`¿Eliminar planilla N° ${historial[idx].nro}?`)) return;
+  historial.splice(idx,1); guardarHist(historial); render();
+}
+function borrarTodo(){
+  if(!confirm("¿Borrar todo el historial? No se puede deshacer.")) return;
+  historial=[]; guardarHist(historial); render();
+}
+
+function fmt(n){ return parseFloat(n||0).toLocaleString("es-AR",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function num(n){ return parseFloat(n||0); }
+function reiniciar(){ S={pan:"inicio",nro:"",tipo:null,ops:[],oi:0,ci:0,difConfig:[]}; render(); }
+function toast(msg){
+  const t=document.createElement("div");
+  t.className="toast";t.textContent=msg;document.body.appendChild(t);
+  setTimeout(()=>t.remove(),3200);
+}
+
+render();
+</script>
+</body>
+</html>

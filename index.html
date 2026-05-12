@@ -182,13 +182,16 @@ const SHEETS_URL="https://script.google.com/macros/s/AKfycbx3KGtKSfWZyO1fbuhZO_o
 
 async function enviarASheets(p){
   try{
-    // Usamos GET con parámetro para evitar problemas de CORS con POST body
     const json = JSON.stringify(p);
     const encoded = encodeURIComponent(json);
     const url = SHEETS_URL + "?data=" + encoded;
-    await fetch(url, { method:"GET", mode:"no-cors" });
-    return true;
-  }catch(e){ return false; }
+    const resp = await fetch(url);
+    const result = await resp.json();
+    return result.ok === true;
+  }catch(e){
+    Logger && Logger.log && Logger.log(e);
+    return false;
+  }
 }
 
 // ══════════════════════════════════════════════════

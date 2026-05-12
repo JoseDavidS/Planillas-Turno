@@ -141,24 +141,29 @@ header{background:var(--v);color:#fff;padding:14px 24px;display:flex;align-items
 // total_rendido                 → calculado automáticamente
 // ══════════════════════════════════════════════════
 const CNUM_BASE  = ["B","T","YER","CTA CTE","MP","APP"];
-const CNUM_SUMA  = [...CNUM_BASE, "varios"];          // suman
-const CNUM_RESTA = ["precio_dif"];                    // restan
-const CALL = ["nombre",...CNUM_BASE,"varios","precio_dif","total_por_rendir","total_rendido"];
+// CALL: orden de carga de campos
+const CALL = ["nombre",...CNUM_BASE,"total_rendido","total_por_rendir","varios","precio_dif"];
 
 const LBL = {
-  nombre:         "Nombre del operario",
+  nombre:          "Nombre del operario",
   B:"B", T:"T", YER:"YER", "CTA CTE":"CTA CTE", MP:"MP", APP:"APP",
-  varios:         "Varios (agua y otros productos)",
-  precio_dif:     "Precio diferenciado (descuento)",
+  total_rendido:   "Total Rendido (se calcula solo: B+T+YER+CTA CTE+MP+APP)",
   total_por_rendir:"Total por Rendir (surtidores)",
-  total_rendido:  "Total Rendido",
+  varios:          "Varios - agua y otros (suma al Total por Rendir)",
+  precio_dif:      "Precio diferenciado (resta del Total por Rendir)",
 };
 
-// Calcula total rendido: suma(CNUM_SUMA) - suma(CNUM_RESTA)
+// Total Rendido = solo suma de campos base
 function calcRendido(campos){
-  const s = CNUM_SUMA.reduce((a,c)=>a+num(campos[c]),0);
-  const r = CNUM_RESTA.reduce((a,c)=>a+num(campos[c]),0);
-  return s - r;
+  return CNUM_BASE.reduce((a,c)=>a+num(campos[c]),0);
+}
+// Total por Rendir ajustado = surtidores + varios - precio_dif
+function calcPorRendir(campos){
+  return num(campos.total_por_rendir) + num(campos.varios) - num(campos.precio_dif);
+}
+// Resultado = Total Rendido - Total por Rendir ajustado
+function calcResultado(campos){
+  return calcRendido(campos) - calcPorRendir(campos);
 }
 
 // ══════════════════════════════════════════════════
@@ -365,14 +370,14 @@ function rDatos(){
   // Ayudas contextuales
   let ayuda="";
   const rendidoActual=calcRendido(op.campos);
-  if(campo==="varios")
-    ayuda=`<div class="campo-ayuda violeta">🛒 Agua, golosinas y otros productos. <strong>Suma</strong> al Total Rendido.</div>`;
-  if(campo==="precio_dif")
-    ayuda=`<div class="campo-ayuda rojo">🏷️ Descuento por precio diferenciado. <strong>Resta</strong> del Total Rendido. Total Rendido parcial hasta acá: <strong>${fmt(rendidoActual)}</strong></div>`;
-  if(campo==="total_por_rendir")
-    ayuda=`<div class="campo-ayuda azul">📊 Lo que marcaron los surtidores (lo ingresás vos).</div>`;
   if(campo==="total_rendido")
-    ayuda=`<div class="campo-ayuda azul">✅ Total Rendido calculado = B+T+YER+CTACTE+MP+APP+Varios−P.Dif = <strong>${fmt(rendidoActual)}</strong><br>Dejalo vacío para usar ese valor automáticamente, o ingresá uno diferente.</div>`;
+    ayuda=`<div class="campo-ayuda azul">✅ Se calcula solo: B+T+YER+CTA CTE+MP+APP = <strong>${fmt(calcRendido(op.campos))}</strong>. Dejalo vacío para usar ese valor, o ingresá uno diferente.</div>`;
+  if(campo==="total_por_rendir")
+    ayuda=`<div class="campo-ayuda azul">📊 Lo que marcaron los surtidores (lo ingresás vos). Después se le suma Varios y se le resta Precio Diferenciado.</div>`;
+  if(campo==="varios")
+    ayuda=`<div class="campo-ayuda violeta">🛒 Agua, golosinas y otros. <strong>Suma</strong> al Total por Rendir. Por Rendir parcial: <strong>${fmt(calcPorRendir(op.campos))}</strong></div>`;
+  if(campo==="precio_dif")
+    ayuda=`<div class="campo-ayuda rojo">🏷️ Descuento. <strong>Resta</strong> del Total por Rendir. Por Rendir parcial: <strong>${fmt(calcPorRendir(op.campos))}</strong></div>`;
 
   // GNC toggle
   let gnc="";
@@ -430,7 +435,7 @@ function rResumen(){
 
   // Totales globales
   const totRendido   = S.ops.reduce((a,o)=>a+num(o.campos.total_rendido),0);
-  const totPorRendir = S.ops.reduce((a,o)=>a+num(o.campos.total_por_rendir),0);
+  const totPorRendir = S.ops.reduce((a,o)=>a+calcPorRendir(o.campos),0);
   const resultado    = totRendido - totPorRendir;
 
   // Filas campos base
@@ -442,17 +447,19 @@ function rResumen(){
     return `<tr><td>${c}</td>${tds}</tr>`;
   }).join("");
 
-  // Fila varios
-  const rVarios=S.ops.map(o=>`<td>${fmt(o.campos.varios)}</td>`).join("");
-  // Fila precio dif
+  // Fila varios (suma al por rendir)
+  const rVarios=S.ops.map(o=>`<td>+ ${fmt(o.campos.varios)}</td>`).join("");
+  // Fila precio dif (resta del por rendir)
   const rPDif=S.ops.map(o=>`<td>− ${fmt(o.campos.precio_dif)}</td>`).join("");
-  // Total rendido por operario
+  // Total rendido por operario (solo B+T+YER+etc)
   const rTotRend=S.ops.map(o=>`<td>${fmt(o.campos.total_rendido)}</td>`).join("");
-  // Total por rendir
+  // Surtidores (valor base ingresado)
   const rPorRend=S.ops.map(o=>`<td>${fmt(o.campos.total_por_rendir)}</td>`).join("");
+  // Total por rendir ajustado = surtidores + varios - precio_dif
+  const rTotPorRend=S.ops.map(o=>`<td>${fmt(calcPorRendir(o.campos))}</td>`).join("");
   // Resultado por operario
   const rRes=S.ops.map(o=>{
-    const r=num(o.campos.total_rendido)-num(o.campos.total_por_rendir);
+    const r=calcResultado(o.campos);
     return `<td style="color:${r<0?"#ff6b6b":r>0?"#4cff8a":"inherit"}">${fmt(r)}</td>`;
   }).join("");
 
@@ -500,14 +507,14 @@ function rResumen(){
       <table class="rtab">
         <thead><tr><th>Campo</th>${thOps}</tr></thead>
         <tbody>
-          <tr class="sep"><td colspan="${S.ops.length+1}">— Formas de pago (suman) —</td></tr>
+          <tr class="sep"><td colspan="${S.ops.length+1}">— Formas de pago —</td></tr>
           ${rBase}
-          <tr class="varios-row"><td>🛒 Varios</td>${rVarios}</tr>
-          <tr class="sep"><td colspan="${S.ops.length+1}">— Descuentos (restan) —</td></tr>
-          <tr class="resta-row"><td>🏷️ Precio diferenciado</td>${rPDif}</tr>
           <tr class="tot"><td>TOTAL RENDIDO</td>${rTotRend}</tr>
-          <tr class="sep"><td colspan="${S.ops.length+1}">— Surtidores —</td></tr>
-          <tr><td>Total por Rendir</td>${rPorRend}</tr>
+          <tr class="sep"><td colspan="${S.ops.length+1}">— Total por Rendir —</td></tr>
+          <tr><td>Surtidores</td>${rPorRend}</tr>
+          <tr class="varios-row"><td>🛒 + Varios</td>${rVarios}</tr>
+          <tr class="resta-row"><td>🏷️ − Precio diferenciado</td>${rPDif}</tr>
+          <tr class="tot"><td>TOTAL POR RENDIR</td>${rTotPorRend}</tr>
           <tr class="res"><td>RESULTADO</td>${rRes}</tr>
         </tbody>
       </table>
@@ -586,7 +593,7 @@ function avanzar(){
   if(campo==="nombre"){
     op.nombre=val;
   } else if(campo==="total_rendido"){
-    // Auto-calcular si vacío
+    // Auto-calcular si vacío: solo suma campos base
     const auto=calcRendido(op.campos);
     if(val===""){ op.campos.total_rendido=auto; op.raw.total_rendido=""; }
     else{ op.raw[campo]=val; op.campos[campo]=evalExpr(val)??num(val); }
@@ -647,8 +654,8 @@ function confirmEdit(){
   const campo=CALL[ES.ci],val=document.getElementById("ovI").value.trim(),op=S.ops[ES.oi];
   if(campo==="nombre"){ op.nombre=val; }
   else{ op.raw[campo]=val; op.campos[campo]=val?(evalExpr(val)??0):0; }
-  // Recalcular total_rendido si cambió algo que lo afecta
-  if([...CNUM_SUMA,...CNUM_RESTA].includes(campo)){
+  // Recalcular total_rendido si cambió un campo base
+  if(CNUM_BASE.includes(campo)){
     op.campos.total_rendido=calcRendido(op.campos);
     op.raw.total_rendido="";
   }
@@ -667,24 +674,24 @@ document.getElementById("ovI").addEventListener("keydown",e=>{
 // ══════════════════════════════════════════════════
 function buildRows(p){
   const tR=p.ops.reduce((a,o)=>a+num(o.campos.total_rendido),0);
-  const tP=p.ops.reduce((a,o)=>a+num(o.campos.total_por_rendir),0);
+  const tP=p.ops.reduce((a,o)=>a+(num(o.campos.total_por_rendir)+num(o.campos.varios)-num(o.campos.precio_dif)),0);
   return [
     [`PLANILLA N° ${p.nro}  ·  ${p.tipo}  ·  ${p.fecha}`],[],
     ["Surtidores",...p.ops.map(o=>o.surtidores)],
     ["Operario",  ...p.ops.map(o=>o.nombre||"—")],[],
-    ["— Formas de pago (suman) —"],
+    ["— Formas de pago —"],
     ...CNUM_BASE.map(c=>[c,...p.ops.map(o=>num(o.campos[c]))]),
-    ["Varios (agua y otros)",...p.ops.map(o=>num(o.campos.varios))],[],
-    ["— Descuentos (restan) —"],
-    ["Precio diferenciado",...p.ops.map(o=>-num(o.campos.precio_dif))],[],
     ["TOTAL RENDIDO",...p.ops.map(o=>num(o.campos.total_rendido))],[],
-    ["— Surtidores —"],
-    ["Total por Rendir",...p.ops.map(o=>num(o.campos.total_por_rendir))],
-    ["RESULTADO",...p.ops.map(o=>num(o.campos.total_rendido)-num(o.campos.total_por_rendir))],[],
+    ["— Total por Rendir —"],
+    ["Surtidores",...p.ops.map(o=>num(o.campos.total_por_rendir))],
+    ["+ Varios",...p.ops.map(o=>num(o.campos.varios))],
+    ["- Precio diferenciado",...p.ops.map(o=>num(o.campos.precio_dif))],
+    ["TOTAL POR RENDIR",...p.ops.map(o=>num(o.campos.total_por_rendir)+num(o.campos.varios)-num(o.campos.precio_dif))],
+    ["RESULTADO",...p.ops.map(o=>num(o.campos.total_rendido)-(num(o.campos.total_por_rendir)+num(o.campos.varios)-num(o.campos.precio_dif)))],[],
     ["TOTALES GLOBALES",""],
     ["Total Rendido global",tR],["Total por Rendir global",tP],["Resultado global",tR-tP],[],
     ["Expresiones ingresadas"],
-    ...[...CNUM_BASE,"varios","precio_dif","total_por_rendir"].map(c=>[LBL[c]||c,...p.ops.map(o=>o.raw?.[c]||"")]),
+    ...[...CNUM_BASE,"total_por_rendir","varios","precio_dif"].map(c=>[LBL[c]||c,...p.ops.map(o=>o.raw?.[c]||"")]),
   ];
 }
 
